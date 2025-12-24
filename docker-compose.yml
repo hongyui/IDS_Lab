@@ -1,0 +1,141 @@
+services:
+  # --- Indexer (data) ---
+  wazuh.indexer:
+    image: wazuh/wazuh-indexer:4.7.2
+    container_name: wazuh.indexer
+    hostname: wazuh.indexer
+    ports:
+      - "9200:9200"
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "discovery.type=single-node"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.key
+      - ./config/wazuh_indexer_ssl_certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem
+      - ./config/wazuh_indexer_ssl_certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem
+      - ./config/wazuh_indexer_ssl_certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem
+      - ./config/wazuh_indexer/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml
+      - ./config/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml
+    networks:
+      - lab-net
+
+  # --- Manager (core) ---
+  wazuh.manager:
+    image: wazuh/wazuh-manager:4.7.2
+    container_name: wazuh.manager
+    hostname: wazuh.manager
+    ports:
+      - "1514:1514"
+      - "55000:55000"
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-
+    volumes:
+      - ./config/wazuh_config/local_rules.xml:/var/ossec/etc/rules/local_rules.xml
+      - ./config/wazuh_indexer_ssl_certs/root-ca-manager.pem:/etc/ssl/root-ca.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.manager.pem:/etc/ssl/filebeat.pem
+      - ./config/wazuh_config/ossec.conf:/var/ossec/etc/ossec.conf
+      - ./config/wazuh_config/ar.conf:/var/ossec/etc/shared/ar.conf
+      - ./logs:/var/log/suricata
+      - ./config/wazuh_config/local_internal_options.conf:/var/ossec/etc/local_internal_options.conf
+    networks:
+      - lab-net
+    depends_on:
+      - wazuh.indexer
+
+  # --- Dashboard (GUI) ---
+  wazuh.dashboard:
+    image: wazuh/wazuh-dashboard:4.7.2
+    container_name: wazuh.dashboard
+    hostname: wazuh.dashboard
+    ports:
+      - "443:5601"
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - WAZUH_API_URL=https://wazuh.manager:55000
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-
+    volumes:
+      - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
+      - ./config/wazuh_indexer_ssl_certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem
+      - ./config/wazuh_indexer_ssl_certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem
+      - ./config/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
+      - ./config/wazuh_dashboard/wazuh.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml    
+    networks:
+      - lab-net
+    depends_on:
+      - wazuh.indexer
+      - wazuh.manager
+
+  # --- Victim (Metasploitable) ---
+  metasploitable:
+    image: tleemcjr/metasploitable2
+    container_name: target
+    hostname: target
+    ports:
+      - "80:80"
+      - "21:21"
+      - "22:22"
+      - "6200:6200"
+    tty: true
+    networks:
+      - lab-net
+
+  # --- Attacker (Kail) ---
+  attacker:
+    build: ./kail
+    container_name: attacker
+    hostname: attacker
+    tty: true
+    networks:
+      - lab-net
+
+  # --- IDS (Suricata) ---
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+      - NET_RAW
+    network_mode: "service:metasploitable"
+    volumes:
+      - ./logs:/var/log/suricata
+      - ./suricata/rules/:/var/lib/suricata/rules/
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml
+    command: -i eth0
+
+  evebox:
+    image: jasonish/evebox:latest
+    container_name: evebox
+    hostname: evebox
+    ports:
+      - "5636:5636"
+    volumes:
+      - ./logs:/var/log/suricata
+    command: -D /var/lib/evebox --datastore sqlite --input /var/log/suricata/eve.json
+    networks:
+      - lab-net
+
+volumes:
+  wazuh-indexer-data:
+
+networks:
+  lab-net:
+    driver: bridge
