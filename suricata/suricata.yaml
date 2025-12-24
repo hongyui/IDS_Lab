@@ -1,0 +1,180 @@
+%YAML 1.1 
+---
+vars:
+  address-groups:
+    HOME_NET: "any"
+    EXTERNAL_NET: "any"
+    TELNET_SERVERS: "$HOME_NET"
+    HTTP_SERVERS: "$HOME_NET"
+    SMTP_SERVERS: "$HOME_NET"
+    SQL_SERVERS: "$HOME_NET"
+    DNS_SERVERS: "$HOME_NET"
+    
+  port-groups:
+    HTTP_PORTS: "80"
+    SHELLCODE_PORTS: "!80"
+    ORACLE_PORTS: 1521
+    SSH_PORTS: 22
+    DNP3_PORTS: 20000
+    MODBUS_PORTS: 502
+    FILE_DATA_PORTS: "[$HTTP_PORTS,110,143]"
+    FTP_PORTS: 21
+    VXLAN_PORTS: 4789
+    TEREDO_PORTS: 3544
+
+default-rule-path: /var/lib/suricata/rules
+
+rule-files:
+  - suricata.rules                      # 主規則檔
+  
+  # - emerging-attack_response.rules    # 攻擊回應偵測
+  # - emerging-exploit.rules            # 漏洞利用
+  # - emerging-malware.rules            # 惡意軟體
+  - emerging-scan.rules               # 掃描偵測
+  - emerging-web_server.rules         # Web 攻擊
+  # - emerging-dos.rules                # DoS 攻擊
+  # - emerging-botcc.rules              # 殭屍網路
+  # - emerging-compromised.rules        # 被入侵主機
+  # - emerging-phishing.rules           # 釣魚攻擊
+  # - emerging-policy.rules             # 政策違規
+  
+  - local.rules
+
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: /var/log/suricata/eve.json
+      
+      types:
+        - alert:
+            payload: yes
+            payload-buffer-size: 1kb
+            payload-printable: yes
+            packet: no
+            http-body: yes
+            http-body-printable: yes
+            tagged-packets: yes
+            metadata: yes
+        - http:
+            extended: yes
+        - dns:
+            query: yes
+            answer: yes
+        - tls:
+            extended: yes
+        - files:
+            force-magic: yes
+        - ssh
+        - flow
+        - stats:
+            totals: yes
+            threads: no
+            deltas: no
+
+  - fast:
+      enabled: yes
+      filename: /var/log/suricata/fast.log
+      append: yes
+
+  - stats:
+      enabled: yes
+      filename: /var/log/suricata/stats.log
+      append: yes
+      totals: yes
+      threads: yes
+
+logging:
+  default-log-level: notice
+  
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        level: info
+        filename: /var/log/suricata/suricata.log
+    - syslog:
+        enabled: no
+
+app-layer:
+  protocols:
+    http:
+      enabled: yes
+      memcap: 64mb
+      
+    tls:
+      enabled: yes
+      detection-ports:
+        dp: 443
+        
+    ftp:
+      enabled: yes
+      
+    ssh:
+      enabled: yes
+      
+    smtp:
+      enabled: yes
+      
+    dns:
+      tcp:
+        enabled: yes
+      udp:
+        enabled: yes
+
+stream:
+  memcap: 64mb
+  checksum-validation: yes
+  inline: auto
+  reassembly:
+    memcap: 256mb
+    depth: 1mb
+    toserver-chunk-size: 2560
+    toclient-chunk-size: 2560
+
+
+host-mode: auto
+
+unix-command:
+  enabled: yes
+  filename: /var/run/suricata/suricata-command.socket
+
+detect:
+  profile: medium
+  custom-values:
+    toclient-groups: 3
+    toserver-groups: 25
+  sgh-mpm-context: auto
+  inspection-recursion-limit: 3000
+
+engine-analysis:
+  rules-fast-pattern: yes
+  rules: yes
+
+threading:
+  set-cpu-affinity: no
+  cpu-affinity:
+    - management-cpu-set:
+        cpu: [ 0 ]
+    - receive-cpu-set:
+        cpu: [ 0 ]
+    - worker-cpu-set:
+        cpu: [ "all" ]
+  detect-thread-ratio: 1.0
+
+mpm-algo: auto
+
+defrag:
+  memcap: 32mb
+  hash-size: 65536
+  trackers: 65535
+  max-frags: 65535
+  prealloc: yes
+  timeout: 60
+
+decoder:
+  teredo:
+    enabled: true
+  vxlan:
+    enabled: true

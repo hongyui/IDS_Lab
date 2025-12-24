@@ -1,0 +1,8 @@
+alert tcp any any -> any any (msg:"[NIU-LAB] Possible SQL Injection Detected"; content:"UNION"; nocase; http_uri; content:"SELECT"; nocase; http_uri; sid:10001; rev:1; classtype:web-application-attack;)
+alert tcp any any -> any any (msg:"[NIU-LAB] Possible SQL Injection - Logic Bypass"; content:"OR"; nocase; http_uri; content:"="; http_uri; sid:10002; rev:1; classtype:web-application-attack;)
+alert tcp any any -> any any (msg:"[NIU-LAB] Possible XSS Attack - Script Tag"; content:"<script>"; nocase; http_uri; sid:10003; rev:1; classtype:web-application-attack;)
+alert tcp any any -> any 80 (msg:"[NIU-LAB] Potential HTTP DoS Attack"; flags:S; threshold: type both, track by_src, count 50, seconds 10; sid:10004; rev:1; classtype:attempted-dos;)
+alert tcp any any -> any any (msg:"[NIU-LAB] Nmap Scan Detected"; flags:S,12; threshold: type both, track by_src, count 20, seconds 10; sid:10005; rev:1; classtype:attempted-recon;)
+alert icmp any any -> any any (msg:"[NIU-LAB] ICMP Ping Detected"; itype:8; sid:10006; rev:1; classtype:misc-activity;)
+alert tcp any any -> any 21 (msg:"[NIU-LAB] vsftpd 2.3.4 Backdoor Triggered :)"; flow:to_server,established; content:"USER "; nocase; fast_pattern; content:":)"; distance:0; within:100; classtype:attempted-admin; sid:10007; rev:1;)
+alert tcp any 6200 -> any any (msg:"[NIU-LAB] vsftpd Backdoor Shell Response"; flow:from_server,established; content:"uid="; fast_pattern; classtype:successful-admin; sid:10008; rev:1;)
