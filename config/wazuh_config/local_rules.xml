@@ -1,0 +1,25 @@
+<group name="ids,suricata,niu_lab,">
+  <rule id="100000" level="14">
+    <if_sid>86601</if_sid>
+    <match>[NIU-LAB]</match>
+    <description>$(alert.signature)</description>
+  </rule>
+
+  <rule id="100001" level="3">
+    <if_sid>100000</if_sid>
+    <match>ICMP Ping|Ping Detected</match>
+    <description>$(alert.signature)</description>
+  </rule>
+
+  <rule id="100002" level="6">
+    <if_sid>100000</if_sid>
+    <match>Nmap|SYN Scan</match>
+    <description>$(alert.signature)</description>
+  </rule>
+
+  <rule id="100003" level="7">
+    <if_sid>100000</if_sid>
+    <match>Possible</match>
+    <description>$(alert.signature)</description>
+  </rule>
+</group>
