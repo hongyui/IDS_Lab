@@ -1,4 +1,4 @@
-# IDS & SIEM 綜合實戰 Lab
+# IDS & SIEM Lab
 
 本專案是一個基於 Docker 的整合式資安實驗環境，結合了**紅藍隊的攻擊與防禦技術**，以及**IDS (Intrusion Detection System)** 與 **SIEM (Security Information and Event Management)** 的功能。
 
@@ -72,7 +72,7 @@ docker-compose up -d
 
 ### 2. 存取服務
 
-* **EveBox (IDS Log)**: [http://localhost:5636](http://localhost:5636)
+* **EveBox (IDS Log)**: [https://localhost:5636](https://localhost:5636)
   * 帳號: `admin`
   * 密碼: 於容器Log內查看密碼
 * **Wazuh Dashboard (SIEM)**: [https://localhost](https://localhost)
